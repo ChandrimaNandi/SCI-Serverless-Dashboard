@@ -1,0 +1,440 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      ELcompute: ((if exists r[\"lambda_DoorbellLambda_Texec\"] then r[\"lambda_DoorbellLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Texec\"] then r[\"lambda_FaceRecognitionLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Texec\"] then r[\"lambda_FetchWebsiteFromS3_Texec\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Texec\"] then r[\"lambda_PINVerificationLambda_Texec\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Texec\"] then r[\"lambda_UploadLambda_Texec\"] else 0.0) + (if exists r[\"lambda_DoorbellLambda_Tinit\"] then r[\"lambda_DoorbellLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Tinit\"] then r[\"lambda_FaceRecognitionLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Tinit\"] then r[\"lambda_FetchWebsiteFromS3_Tinit\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Tinit\"] then r[\"lambda_PINVerificationLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Tinit\"] then r[\"lambda_UploadLambda_Tinit\"] else 0.0)) * (if exists r[\"assumed_P_core_w\"] then r[\"assumed_P_core_w\"] else 25.0) / (3600.0 * 1000.0),\n      ELmemory:  (if exists r[\"lambda_DoorbellLambda_Mused\"] then r[\"lambda_DoorbellLambda_Mused\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Mused\"] then r[\"lambda_FaceRecognitionLambda_Mused\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Mused\"] then r[\"lambda_FetchWebsiteFromS3_Mused\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Mused\"] then r[\"lambda_PINVerificationLambda_Mused\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Mused\"] then r[\"lambda_UploadLambda_Mused\"] else 0.0) * (if exists r[\"assumed_P_mem_w\"] then r[\"assumed_P_mem_w\"] else 10.0) * ((if exists r[\"lambda_DoorbellLambda_Texec\"] then r[\"lambda_DoorbellLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Texec\"] then r[\"lambda_FaceRecognitionLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Texec\"] then r[\"lambda_FetchWebsiteFromS3_Texec\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Texec\"] then r[\"lambda_PINVerificationLambda_Texec\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Texec\"] then r[\"lambda_UploadLambda_Texec\"] else 0.0) + (if exists r[\"lambda_DoorbellLambda_Tinit\"] then r[\"lambda_DoorbellLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Tinit\"] then r[\"lambda_FaceRecognitionLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Tinit\"] then r[\"lambda_FetchWebsiteFromS3_Tinit\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Tinit\"] then r[\"lambda_PINVerificationLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Tinit\"] then r[\"lambda_UploadLambda_Tinit\"] else 0.0)) / (1024.0 * 1000.0 * 3600.0),\n      ELstorage: (if exists r[\"lambda_DoorbellLambda_Sused\"] then r[\"lambda_DoorbellLambda_Sused\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Sused\"] then r[\"lambda_FaceRecognitionLambda_Sused\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Sused\"] then r[\"lambda_FetchWebsiteFromS3_Sused\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Sused\"] then r[\"lambda_PINVerificationLambda_Sused\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Sused\"] then r[\"lambda_UploadLambda_Sused\"] else 0.0) * (if exists r[\"assumed_P_storage_w\"] then r[\"assumed_P_storage_w\"] else 5.0) / (1073741824.0 * 1000.0 * 3600.0),\n      Enetwork:  (if exists r[\"lambda_DoorbellLambda_Dnetwork\"] then r[\"lambda_DoorbellLambda_Dnetwork\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Dnetwork\"] then r[\"lambda_FaceRecognitionLambda_Dnetwork\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Dnetwork\"] then r[\"lambda_FetchWebsiteFromS3_Dnetwork\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Dnetwork\"] then r[\"lambda_PINVerificationLambda_Dnetwork\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Dnetwork\"] then r[\"lambda_UploadLambda_Dnetwork\"] else 0.0) * 0.277778 / 1073741824.0,\n      EDB:       ((if exists r[\"dynamodb_Events_Lsuccess\"] then r[\"dynamodb_Events_Lsuccess\"] else 0.0) + (if exists r[\"dynamodb_Users_Lsuccess\"] then r[\"dynamodb_Users_Lsuccess\"] else 0.0)) * 0.005 / (3600.0 * 1000.0),\n      EAPI:      (if exists r[\"api_API_LAPI\"] then r[\"api_API_LAPI\"] else 0.0) * 15.0 / (3600.0 * 1000.0),\n      ERekog:    (if exists r[\"rekognition_Rekognition_Tresponse\"] then r[\"rekognition_Rekognition_Tresponse\"] else 0.0) * 0.0 / (3600.0 * 1000.0),\n      ES3active: ((if exists r[\"s3_mhm-home-security-img_Rtotal\"] then r[\"s3_mhm-home-security-img_Rtotal\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_Rtotal\"] then r[\"s3_mhm-home-security-ui_Rtotal\"] else 0.0)) * ((if exists r[\"s3_mhm-home-security-img_Dlatency\"] then r[\"s3_mhm-home-security-img_Dlatency\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_Dlatency\"] then r[\"s3_mhm-home-security-ui_Dlatency\"] else 0.0)) * 0.005 / (3600.0 * 1000.0),\n      ES3idle:   ((if exists r[\"s3_mhm-home-security-img_B\"] then r[\"s3_mhm-home-security-img_B\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_B\"] then r[\"s3_mhm-home-security-ui_B\"] else 0.0)) * 0.0001 / (1073741824.0 * 1024.0 * 1000.0),\n      PUE:       (if exists r[\"assumed_PUE\"] then r[\"assumed_PUE\"] else 1.5),\n      GEF:       (if exists r[\"grid_emission_factor\"] then r[\"grid_emission_factor\"] else 350.0)\n  }))\n  |> map(fn: (r) => ({\n      r with\n      ETotal: r.ELcompute + r.ELmemory + r.ELstorage + r.Enetwork + r.EDB + r.EAPI + r.ERekog + r.ES3active + r.ES3idle\n  }))\n  |> map(fn: (r) => ({\n      r with\n      SCI: r.ETotal * r.PUE * r.GEF\n  }))\n  |> keep(columns: [\"_time\", \"SCI\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Software Carbon Intensity (SCI)",
+      "type": "gauge",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^SCI$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      ELambda:  ((if exists r[\"lambda_DoorbellLambda_Texec\"] then r[\"lambda_DoorbellLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Texec\"] then r[\"lambda_FaceRecognitionLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Texec\"] then r[\"lambda_FetchWebsiteFromS3_Texec\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Texec\"] then r[\"lambda_PINVerificationLambda_Texec\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Texec\"] then r[\"lambda_UploadLambda_Texec\"] else 0.0) + (if exists r[\"lambda_DoorbellLambda_Tinit\"] then r[\"lambda_DoorbellLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Tinit\"] then r[\"lambda_FaceRecognitionLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Tinit\"] then r[\"lambda_FetchWebsiteFromS3_Tinit\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Tinit\"] then r[\"lambda_PINVerificationLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Tinit\"] then r[\"lambda_UploadLambda_Tinit\"] else 0.0)) * (if exists r[\"assumed_P_core_w\"] then r[\"assumed_P_core_w\"] else 25.0) / (3600.0 * 1000.0),\n      EStorage: ((if exists r[\"s3_mhm-home-security-img_Rtotal\"] then r[\"s3_mhm-home-security-img_Rtotal\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_Rtotal\"] then r[\"s3_mhm-home-security-ui_Rtotal\"] else 0.0)) * ((if exists r[\"s3_mhm-home-security-img_Dlatency\"] then r[\"s3_mhm-home-security-img_Dlatency\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_Dlatency\"] then r[\"s3_mhm-home-security-ui_Dlatency\"] else 0.0)) * 0.005 / (3600.0 * 1000.0),\n      EDB:      ((if exists r[\"dynamodb_Events_Lsuccess\"] then r[\"dynamodb_Events_Lsuccess\"] else 0.0) + (if exists r[\"dynamodb_Users_Lsuccess\"] then r[\"dynamodb_Users_Lsuccess\"] else 0.0)) * 0.005 / (3600.0 * 1000.0),\n      EAPI:     (if exists r[\"api_API_LAPI\"] then r[\"api_API_LAPI\"] else 0.0) * 15.0 / (3600.0 * 1000.0),\n      ERekog:   0.0\n  }))\n  |> keep(columns: [\"_time\", \"ELambda\", \"EStorage\", \"EDB\", \"EAPI\", \"ERekog\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Energy Breakdown (kWh)",
+      "type": "table",
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      ES3active: ((if exists r[\"s3_mhm-home-security-img_Rtotal\"] then r[\"s3_mhm-home-security-img_Rtotal\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_Rtotal\"] then r[\"s3_mhm-home-security-ui_Rtotal\"] else 0.0)) * ((if exists r[\"s3_mhm-home-security-img_Dlatency\"] then r[\"s3_mhm-home-security-img_Dlatency\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_Dlatency\"] then r[\"s3_mhm-home-security-ui_Dlatency\"] else 0.0)) * 0.005 / (3600.0 * 1000.0),\n      ES3idle:   ((if exists r[\"s3_mhm-home-security-img_B\"] then r[\"s3_mhm-home-security-img_B\"] else 0.0) + (if exists r[\"s3_mhm-home-security-ui_B\"] then r[\"s3_mhm-home-security-ui_B\"] else 0.0)) * 0.0001 / (1073741824.0 * 1024.0 * 1000.0)\n  }))\n  |> keep(columns: [\"_time\", \"ES3active\", \"ES3idle\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Storage Energy Breakdown (kWh)",
+      "type": "table",
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      ELcompute: ((if exists r[\"lambda_DoorbellLambda_Texec\"] then r[\"lambda_DoorbellLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Texec\"] then r[\"lambda_FaceRecognitionLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Texec\"] then r[\"lambda_FetchWebsiteFromS3_Texec\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Texec\"] then r[\"lambda_PINVerificationLambda_Texec\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Texec\"] then r[\"lambda_UploadLambda_Texec\"] else 0.0) + (if exists r[\"lambda_DoorbellLambda_Tinit\"] then r[\"lambda_DoorbellLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Tinit\"] then r[\"lambda_FaceRecognitionLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Tinit\"] then r[\"lambda_FetchWebsiteFromS3_Tinit\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Tinit\"] then r[\"lambda_PINVerificationLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Tinit\"] then r[\"lambda_UploadLambda_Tinit\"] else 0.0)) * (if exists r[\"assumed_P_core_w\"] then r[\"assumed_P_core_w\"] else 25.0) / (3600.0 * 1000.0)\n  }))\n  |> keep(columns: [\"_time\", \"ELcompute\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Lambda Compute Energy (kWh)",
+      "type": "stat",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^ELcompute$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 6,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      ELmemory: (if exists r[\"lambda_DoorbellLambda_Mused\"] then r[\"lambda_DoorbellLambda_Mused\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Mused\"] then r[\"lambda_FaceRecognitionLambda_Mused\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Mused\"] then r[\"lambda_FetchWebsiteFromS3_Mused\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Mused\"] then r[\"lambda_PINVerificationLambda_Mused\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Mused\"] then r[\"lambda_UploadLambda_Mused\"] else 0.0) * (if exists r[\"assumed_P_mem_w\"] then r[\"assumed_P_mem_w\"] else 10.0) * ((if exists r[\"lambda_DoorbellLambda_Texec\"] then r[\"lambda_DoorbellLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Texec\"] then r[\"lambda_FaceRecognitionLambda_Texec\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Texec\"] then r[\"lambda_FetchWebsiteFromS3_Texec\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Texec\"] then r[\"lambda_PINVerificationLambda_Texec\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Texec\"] then r[\"lambda_UploadLambda_Texec\"] else 0.0) + (if exists r[\"lambda_DoorbellLambda_Tinit\"] then r[\"lambda_DoorbellLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Tinit\"] then r[\"lambda_FaceRecognitionLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Tinit\"] then r[\"lambda_FetchWebsiteFromS3_Tinit\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Tinit\"] then r[\"lambda_PINVerificationLambda_Tinit\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Tinit\"] then r[\"lambda_UploadLambda_Tinit\"] else 0.0)) / (1024.0 * 1000.0 * 3600.0)\n  }))\n  |> keep(columns: [\"_time\", \"ELmemory\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Lambda Memory Energy (kWh)",
+      "type": "stat",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^ELmemory$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 7,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      ELstorage: (if exists r[\"lambda_DoorbellLambda_Sused\"] then r[\"lambda_DoorbellLambda_Sused\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Sused\"] then r[\"lambda_FaceRecognitionLambda_Sused\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Sused\"] then r[\"lambda_FetchWebsiteFromS3_Sused\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Sused\"] then r[\"lambda_PINVerificationLambda_Sused\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Sused\"] then r[\"lambda_UploadLambda_Sused\"] else 0.0) * (if exists r[\"assumed_P_storage_w\"] then r[\"assumed_P_storage_w\"] else 5.0) / (1073741824.0 * 1000.0 * 3600.0)\n  }))\n  |> keep(columns: [\"_time\", \"ELstorage\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Lambda Storage Energy (kWh)",
+      "type": "stat",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^ELstorage$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 8,
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-datasource"
+          },
+          "query": "from(bucket: \"demo_bucket\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"measured_metrics\")\n  |> pivot(rowKey:[\"_time\"], columnKey:[\"_field\"], valueColumn:\"_value\")\n  |> map(fn: (r) => ({\n      r with\n      Enetwork: (if exists r[\"lambda_DoorbellLambda_Dnetwork\"] then r[\"lambda_DoorbellLambda_Dnetwork\"] else 0.0) + (if exists r[\"lambda_FaceRecognitionLambda_Dnetwork\"] then r[\"lambda_FaceRecognitionLambda_Dnetwork\"] else 0.0) + (if exists r[\"lambda_FetchWebsiteFromS3_Dnetwork\"] then r[\"lambda_FetchWebsiteFromS3_Dnetwork\"] else 0.0) + (if exists r[\"lambda_PINVerificationLambda_Dnetwork\"] then r[\"lambda_PINVerificationLambda_Dnetwork\"] else 0.0) + (if exists r[\"lambda_UploadLambda_Dnetwork\"] then r[\"lambda_UploadLambda_Dnetwork\"] else 0.0) * 0.277778 / 1073741824.0\n  }))\n  |> keep(columns: [\"_time\", \"Enetwork\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Lambda Network Energy (kWh)",
+      "type": "stat",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^Enetwork$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Sustainability Dashboard",
+  "uid": "sustainability_dashboard",
+  "version": 0
+}
