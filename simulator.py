@@ -18,8 +18,10 @@ INFLUX_ORG = os.getenv("INFLUX_ORG", "demo_org")
 INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "demo_bucket")
 
 ELECTRICITY_MAPS_API_KEY = os.getenv("ELECTRICITY_MAPS_API_KEY", "")
-ELECTRICITY_MAPS_ZONE = os.getenv("ELECTRICITY_MAPS_ZONE", "US-CAL-CISO") 
+ELECTRICITY_MAPS_ZONE = os.getenv("ELECTRICITY_MAPS_ZONE", "US-CAL-CISO")
 
+USE_MANUAL_GEF = True
+MANUAL_GEF_VALUE = 541.0
 print(f"Connecting to InfluxDB at {INFLUX_URL}...")
 client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 write_api = client.write_api(write_options=SYNCHRONOUS)
@@ -27,19 +29,19 @@ write_api = client.write_api(write_options=SYNCHRONOUS)
 # =================== FIXED VALUES ===================
 # Assumed parameters hardcoded for formulas
 ASSUMED_VALUES = {
-    "P_core_w": 25.0,
-    "P_mem_w": 10.0,
-    "P_storage_w": 5.0,
-    "E_network_mj_gb": 1.0,
-    "P_GPU_w": 0.0,
-    "P_Proc_w": 15.0,
-    "P_active_w": 0.005,
-    "P_idle_w": 0.0001,
-    "C_mem_gb": 1024.0,
+    "P_core_w": 95.0,
+    "P_mem_w": 0.392,
+    "P_storage_w": 0.0012,
+    "E_network_mj_gb": 0.001,
+    "P_GPU_w": 70,
+    "P_Proc_w": 95,
+    "P_active_w": 18.5,
+    "P_idle_w": 18.5,
+    "C_mem_gb": 5120,
     # Grid_emission_factor_gCO2_kwh is fetched dynamically
-    "PUE": 1.5,
-    "N_inv": 1000.0,
-    "S_upload_mb": 1.2,
+    "PUE": 1.15,
+    "N_inv": 4,
+    "S_upload_mb": 32666,
 }
 
 # ================== METRICS FILE PATHS ====================
@@ -77,7 +79,9 @@ def get_grid_emission_factor():
     Fetches the latest grid emission factor from Electricity Maps.
     """
     global _cached_grid_emission_factor, _last_fetch_time
-    
+    if USE_MANUAL_GEF:
+        logging.info(f"Using Manual Grid Emission Factor: {MANUAL_GEF_VALUE} gCO2/kWh")
+        return MANUAL_GEF_VALUE
     # Cache for 15 minutes (900 seconds)
     if time.time() - _last_fetch_time < 900 and _last_fetch_time != 0:
         return _cached_grid_emission_factor
@@ -101,7 +105,7 @@ def get_grid_emission_factor():
             logging.info(f"Updated Grid Emission Factor: {_cached_grid_emission_factor} gCO2/kWh")
     except Exception as e:
         logging.error(f"Failed to fetch grid emission factor: {e}")
-    
+
     return _cached_grid_emission_factor
 
 def lp_timestamp():
@@ -117,7 +121,7 @@ def read_excel_metrics(file_path):
         if not os.path.exists(file_path):
             logging.warning(f"Metrics file not found: {file_path}")
             return {}
-        
+
         df = pd.read_excel(file_path, header=None)
         metrics = {}
         for idx, row in df.iterrows():
@@ -140,7 +144,7 @@ def read_all_component_metrics():
     """
     all_metrics = {}
     component_energies = {}
-    
+
     # Read Lambda metrics
     lambda_metrics = []
     for lambda_name, file_path in METRIC_FILES["Lambda"].items():
@@ -148,7 +152,7 @@ def read_all_component_metrics():
         if metrics:
             lambda_metrics.append({lambda_name: metrics})
             all_metrics[f"lambda_{lambda_name}"] = metrics
-    
+
     # Read S3 metrics
     s3_metrics = []
     for bucket_name, file_path in METRIC_FILES["S3"].items():
@@ -156,7 +160,7 @@ def read_all_component_metrics():
         if metrics:
             s3_metrics.append({bucket_name: metrics})
             all_metrics[f"s3_{bucket_name}"] = metrics
-    
+
     # Read DynamoDB metrics
     dynamodb_metrics = []
     for table_name, file_path in METRIC_FILES["DynamoDB"].items():
@@ -164,19 +168,19 @@ def read_all_component_metrics():
         if metrics:
             dynamodb_metrics.append({table_name: metrics})
             all_metrics[f"dynamodb_{table_name}"] = metrics
-    
+
     # Read API Gateway metrics
     for api_name, file_path in METRIC_FILES["API"].items():
         metrics = read_excel_metrics(file_path)
         if metrics:
             all_metrics[f"api_{api_name}"] = metrics
-    
+
     # Read Rekognition metrics
     for rekog_name, file_path in METRIC_FILES["Rekognition"].items():
         metrics = read_excel_metrics(file_path)
         if metrics:
             all_metrics[f"rekognition_{rekog_name}"] = metrics
-    
+
     return all_metrics
 
 def simulate_measured():
@@ -186,27 +190,27 @@ def simulate_measured():
     """
     out = {}
     all_component_metrics = read_all_component_metrics()
-    
+
     # Flatten all component metrics
     for component_key, metrics in all_component_metrics.items():
         for metric_name, metric_value in metrics.items():
             # Create flattened key like: lambda_DoorbellLambda_Tinit
             flat_key = f"{component_key}_{metric_name}"
             out[flat_key] = metric_value
-    
+
     return out
 
 
 
 def write_metrics():
     timestamp = lp_timestamp()
-    
+
     # Measured Data
     measured = simulate_measured()
-    
+
     # Assumed / Dynamic Data
     grid_emission_factor = get_grid_emission_factor()
-    
+
     # Add Grid Factor and Assumed Values to measured data
     measured["grid_emission_factor"] = grid_emission_factor
     for key, value in ASSUMED_VALUES.items():
@@ -221,13 +225,12 @@ def write_metrics():
 
 
 if __name__ == "__main__":
-    print("🚀 Writing metrics to InfluxDB...")
+    print("Writing metrics to InfluxDB...")
     try:
         write_metrics()
-        print("✅ Metrics successfully written to InfluxDB. Exiting.")
+        print("Metrics successfully written to InfluxDB. Exiting.")
         client.close()
     except Exception as e:
         logging.error(f"Error writing metrics: {e}")
         client.close()
         exit(1)
-
