@@ -32,7 +32,7 @@ ASSUMED_VALUES = {
     "P_core_w": 95.0,
     "P_mem_w": 0.392,
     "P_storage_w": 0.0012,
-    "E_network_mj_gb": 0.001,
+    "E_network_kwh_gb": 0.001,
     "P_GPU_w": 70,
     "P_Proc_w": 95,
     "P_active_w": 18.5,
