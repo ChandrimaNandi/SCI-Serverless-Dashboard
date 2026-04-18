@@ -525,7 +525,12 @@
         "barWidth": 0.8,
         "groupWidth": 0.7,
         "xField": "component",
-        "valuePosition": "top"
+        "valuePosition": "top",
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        }
       },
       "targets": [
         {
