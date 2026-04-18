@@ -10,117 +10,60 @@ import os
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-# ============================================================================
-# CONSTANTS & PARAMETERS
-# ============================================================================
-# These values MUST match ASSUMED_VALUES in simulator.py
-
-# Lambda Compute Constants
 PCORE = 95.0  # watts (power per CPU core)
 MREF = 1769.0  # MB (reference memory for 1 vCPU)
-
-# Lambda Memory Constants
 PMEM = 0.392  # watts per GB (DRAM power rating)
-
-# Lambda Storage Constants
 PSTORAGE = 0.0012  # watts per GB (NVMe SSD power rating)
-
-# Lambda Network Constants
 ENETWORK_INTENSITY = 0.001  # kWh/GB (network energy intensity)
-
-# S3 Constants
-S3_PACTIVE = 18.5  # watts (active power consumption per request)
+S3_PACTIVE = 18.5  # watts (active power consumption)
 S3_PIDLE = 18.5  # watts (idle power consumption)
 S3_CMEM = 5120.0  # GB (storage capacity)
-
-# DynamoDB Constants
 DYNAMODB_PACTIVE = 18.5  # watts (active power consumption)
-
-# API Gateway Constants
 API_PPROC = 95.0  # watts (processor power rating)
-
-# Rekognition Constants
 REKOGNITION_PGPU = 70.0  # watts (GPU power consumption)
-
-# Assumed Parameters (not from Excel)
-N_INV = 4  # number of invocations
-S_UPLOAD = 32666  # MB (average upload size)
-
-# Global Constants
-PUE = 1.15  # Power Usage Effectiveness
-GRID_EMISSION_FACTOR = 541.0  # gCO2/kWh (default, can vary by region)
-
-# ============================================================================
-# LAMBDA ENERGY CALCULATIONS
-# ============================================================================
+N_INV = 4
+S_UPLOAD = 32666
+PUE = 1.15
+GRID_EMISSION_FACTOR = 541.0
 
 class LambdaEnergyCalculator:
-    """Calculates individual components of Lambda energy consumption"""
+    """Calculate Lambda energy components."""
     
     def __init__(self, data: Dict):
-        """
-        Initialize with Lambda metrics
-        Expected keys: execution_time_ms, allocated_memory_mb, max_memory_used_mb,
-                      init_duration_ms, storage_used_bytes, data_transferred_bytes
-        """
         self.data = data
     
     def compute_energy(self) -> float:
-        """
-        Calculate Lambda Compute Energy
-        ELcompute = (Tcpu × Pcore × Malloc) / (1000 × 3600 × 1000 × Mref)
-        """
+        """Calculate Lambda Compute Energy."""
         tcpu = self.data.get('tcpu', self.data.get('execution_time_ms', 0.0))
         malloc = self.data.get('malloc', self.data.get('allocated_memory_mb', 0.0))
-        
         if tcpu == 0 or malloc == 0:
             return 0.0
-        
-        energy = (tcpu * PCORE * malloc) / (1000.0 * 3600.0 * 1000.0 * MREF)
-        return energy
+        return (tcpu * PCORE * malloc) / (1000.0 * 3600.0 * 1000.0 * MREF)
     
     def memory_energy(self) -> float:
-        """
-        Calculate Lambda Memory Energy
-        ELmemory = (Mused × Pmem × (Texec + Tinit)) / (1024 × 1000 × 1000 × 3600)
-        """
+        """Calculate Lambda Memory Energy."""
         mused = self.data.get('mused', self.data.get('max_memory_used_mb', 0.0))
         texec = self.data.get('texec', self.data.get('execution_time_ms', 0.0))
         tinit = self.data.get('tinit', self.data.get('init_duration_ms', 0.0))
-        
         if mused == 0 or (texec + tinit) == 0:
             return 0.0
-        
-        energy = (mused * PMEM * (texec + tinit)) / (1024.0* 1000.0 * 1000.0 * 3600.0)
-        return energy
+        return (mused * PMEM * (texec + tinit)) / (1024.0* 1000.0 * 1000.0 * 3600.0)
     
     def storage_energy(self) -> float:
-        """
-        Calculate Lambda Storage Energy (ephemeral storage)
-        ELstorage = (Sused × Pstorage × (Texec + Tinit)) / (1024³ × 1000 × 1000 × 3600)
-        """
+        """Calculate Lambda Storage Energy."""
         sused = self.data.get('sused', self.data.get('storage_used_bytes', 0.0))
         texec = self.data.get('texec', self.data.get('execution_time_ms', 0.0))
         tinit = self.data.get('tinit', self.data.get('init_duration_ms', 0.0))
-        
         if sused == 0 or (texec + tinit) == 0:
             return 0.0
-        
-        energy = (sused * PSTORAGE * (texec + tinit)) / (1024.0 ** 3 * 1000.0 * 1000.0 * 3600.0)
-        return energy
+        return (sused * PSTORAGE * (texec + tinit)) / (1024.0 ** 3 * 1000.0 * 1000.0 * 3600.0)
     
     def network_energy(self) -> float:
-        """
-        Calculate Lambda Network Energy
-        Enetwork = (Dnetwork × εnetwork) / 1024³
-        """
+        """Calculate Lambda Network Energy."""
         dnetwork = self.data.get('dnetwork', self.data.get('data_transferred_bytes', 0.0))
-        
         if dnetwork == 0:
             return 0.0
-        
-        energy = (dnetwork * ENETWORK_INTENSITY) / (1024.0 ** 3)
-        return energy
+        return (dnetwork * ENETWORK_INTENSITY) / (1024.0 ** 3)
     
     def total_energy(self) -> float:
         """Calculate total Lambda energy"""
@@ -138,47 +81,28 @@ class LambdaEnergyCalculator:
 
 
 class S3EnergyCalculator:
-    """Calculates S3 energy consumption"""
+    """Calculate S3 energy components."""
     
     def __init__(self, data: Dict):
-        """
-        Initialize with S3 metrics
-        Expected keys: total_requests, total_latency_ms, bucket_size_bytes,
-                      num_invocations, avg_upload_size_bytes
-        """
         self.data = data
     
     def active_energy(self) -> float:
-        """
-        Calculate S3 Active Energy
-        ES3active = (Rtotal × Dlatency × Pactive) / (1000 × 3600 × 1000)
-        """
+        """Calculate S3 Active Energy."""
         rtotal = self.data.get('rtotal', self.data.get('total_requests', 0.0))
         dlatency = self.data.get('dlatency', self.data.get('total_latency_ms', 0.0))
-        
         if rtotal == 0 or dlatency == 0:
             return 0.0
-        
-        energy = (rtotal * dlatency * S3_PACTIVE) / (1000.0 * 3600.0 * 1000.0)
-        return energy
+        return (rtotal * dlatency * S3_PACTIVE) / (1000.0 * 3600.0 * 1000.0)
     
     def idle_energy(self) -> float:
-        """
-        Calculate S3 Idle Energy
-        ES3idle = ((B + (Ninv × Supload)) / 1024³) × (Pidle / (Cmem × 1000)) × 1
-        """
+        """Calculate S3 Idle Energy."""
         b = self.data.get('b', self.data.get('bucket_size_bytes', 0.0))
-        # Use assumed parameters instead of Excel values
         ninv = N_INV
-        supload_bytes = S_UPLOAD # Convert MB to bytes
-        
-        total_data = (b + (ninv * supload_bytes)) / (1024.0 ** 3)  # Convert to GB
-        
+        supload_bytes = S_UPLOAD
+        total_data = (b + (ninv * supload_bytes)) / (1024.0 ** 3)
         if total_data == 0:
             return 0.0
-        
-        energy = total_data * (S3_PIDLE / (S3_CMEM * 1000.0)) * 1.0
-        return energy
+        return total_data * (S3_PIDLE / (S3_CMEM * 1000.0)) * 1.0
     
     def total_energy(self) -> float:
         """Calculate total S3 energy"""
@@ -194,27 +118,17 @@ class S3EnergyCalculator:
 
 
 class DynamoDBEnergyCalculator:
-    """Calculates DynamoDB energy consumption"""
+    """Calculate DynamoDB energy components."""
     
     def __init__(self, data: Dict):
-        """
-        Initialize with DynamoDB metrics
-        Expected keys: latency_success_ms
-        """
         self.data = data
     
     def active_energy(self) -> float:
-        """
-        Calculate DynamoDB Active Energy
-        EDB = (Lsuccess × Pactive) / (1000 × 3600 × 1000)
-        """
+        """Calculate DynamoDB Active Energy."""
         lsuccess = self.data.get('lsuccess', self.data.get('latency_success_ms', 0.0))
-        
         if lsuccess == 0:
             return 0.0
-        
-        energy = (lsuccess * DYNAMODB_PACTIVE) / (1000.0 * 3600.0 * 1000.0)
-        return energy
+        return (lsuccess * DYNAMODB_PACTIVE) / (1000.0 * 3600.0 * 1000.0)
     
     def total_energy(self) -> float:
         """Calculate total DynamoDB energy"""
@@ -222,59 +136,35 @@ class DynamoDBEnergyCalculator:
 
 
 class APIGatewayEnergyCalculator:
-    """Calculates API Gateway energy consumption"""
+    """Calculate API Gateway energy."""
     
     def __init__(self, data: Dict):
-        """
-        Initialize with API Gateway metrics
-        Expected keys: latency_ms
-        """
         self.data = data
     
     def energy(self) -> float:
-        """
-        Calculate API Gateway Energy
-        EAPI = (LAPI × PProc) / (1000 × 3600 × 1000)
-        """
+        """Calculate API Gateway Energy."""
         lapi = self.data.get('lapi', self.data.get('latency_ms', 0.0))
-        
         if lapi == 0:
             return 0.0
-        
-        energy = (lapi * API_PPROC) / (1000.0 * 3600.0 * 1000.0)
-        return energy
+        return (lapi * API_PPROC) / (1000.0 * 3600.0 * 1000.0)
 
 
 class RekognitionEnergyCalculator:
-    """Calculates Rekognition energy consumption"""
+    """Calculate Rekognition energy."""
     
     def __init__(self, data: Dict):
-        """
-        Initialize with Rekognition metrics
-        Expected keys: response_time_ms
-        """
         self.data = data
     
     def energy(self) -> float:
-        """
-        Calculate Rekognition Energy
-        ERekog = (Tresponse × PGPU) / (1000 × 3600 × 1000)
-        """
+        """Calculate Rekognition Energy."""
         tresponse = self.data.get('tresponse', self.data.get('response_time_ms', 0.0))
-        
         if tresponse == 0:
             return 0.0
-        
-        energy = (tresponse * REKOGNITION_PGPU) / (1000.0 * 3600.0 * 1000.0)
-        return energy
+        return (tresponse * REKOGNITION_PGPU) / (1000.0 * 3600.0 * 1000.0)
 
-
-# ============================================================================
-# DATA LOADER
-# ============================================================================
 
 class DataLoader:
-    """Loads data from Excel files"""
+    """Load metrics from Excel files."""
     
     def __init__(self, base_path: str = "Final Serverless Metrics"):
         self.base_path = Path(base_path)
@@ -414,12 +304,8 @@ class DataLoader:
         return {}
 
 
-# ============================================================================
-# REPORT GENERATOR
-# ============================================================================
-
 class EnergyReport:
-    """Generates and displays energy calculations"""
+    """Calculate and display energy metrics."""
     
     def __init__(self):
         self.lambda_energy = {}
@@ -580,17 +466,10 @@ class EnergyReport:
         }
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
     print("\n" + "="*80)
     print("SERVERLESS ENERGY CALCULATOR")
-    print("Cross-check tool for Grafana Dashboard")
     print("="*80)
-    
-    # Create loader and report
     loader = DataLoader("Final Serverless Metrics")
     report = EnergyReport()
     

@@ -8,10 +8,8 @@ from pathlib import Path
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# ===================== CONFIG ======================
 INFLUX_URL = os.getenv("INFLUX_URL", "http://localhost:8086")
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN", "demo_token_please_change")
 INFLUX_ORG = os.getenv("INFLUX_ORG", "demo_org")
@@ -26,8 +24,6 @@ print(f"Connecting to InfluxDB at {INFLUX_URL}...")
 client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 write_api = client.write_api(write_options=SYNCHRONOUS)
 
-# =================== FIXED VALUES ===================
-# Assumed parameters hardcoded for formulas
 ASSUMED_VALUES = {
     "P_core_w": 95.0,
     "P_mem_w": 0.392,
@@ -44,7 +40,6 @@ ASSUMED_VALUES = {
     "S_upload_mb": 32666,
 }
 
-# ================== METRICS FILE PATHS ====================
 METRICS_BASE_PATH = Path(__file__).parent / "Final Serverless Metrics"
 
 def discover_metric_files():
@@ -66,10 +61,8 @@ def discover_metric_files():
         category_path = METRICS_BASE_PATH / category_folder
         
         if category_path.exists():
-            # Find all .xlsx files in the category folder
             xlsx_files = sorted(category_path.glob("*.xlsx"))
             for xlsx_file in xlsx_files:
-                # Use filename without extension as component name
                 component_name = xlsx_file.stem
                 metric_files[category_key][component_name] = xlsx_file
         else:
@@ -79,19 +72,15 @@ def discover_metric_files():
 
 METRIC_FILES = discover_metric_files()
 
-# Cache for Grid Emission Factor
 _cached_grid_emission_factor = 350.0
 _last_fetch_time = 0
 
 def get_grid_emission_factor():
-    """
-    Fetches the latest grid emission factor from Electricity Maps.
-    """
+    """Fetch grid emission factor from Electricity Maps."""
     global _cached_grid_emission_factor, _last_fetch_time
     if USE_MANUAL_GEF:
         logging.info(f"Using Manual Grid Emission Factor: {MANUAL_GEF_VALUE} gCO2/kWh")
         return MANUAL_GEF_VALUE
-    # Cache for 15 minutes (900 seconds)
     if time.time() - _last_fetch_time < 900 and _last_fetch_time != 0:
         return _cached_grid_emission_factor
 
