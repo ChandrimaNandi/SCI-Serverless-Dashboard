@@ -46,29 +46,38 @@ ASSUMED_VALUES = {
 
 # ================== METRICS FILE PATHS ====================
 METRICS_BASE_PATH = Path(__file__).parent / "Final Serverless Metrics"
-METRIC_FILES = {
-    "Lambda": {
-        "DoorbellLambda": METRICS_BASE_PATH / "Lambda" / "DoorbellLambda.xlsx",
-        "FaceRecognitionLambda": METRICS_BASE_PATH / "Lambda" / "FaceRecognitionLambda.xlsx",
-        "FetchWebsiteFromS3": METRICS_BASE_PATH / "Lambda" / "FetchWebsiteFromS3.xlsx",
-        "PINVerificationLambda": METRICS_BASE_PATH / "Lambda" / "PINVerificationLambda.xlsx",
-        "UploadLambda": METRICS_BASE_PATH / "Lambda" / "UploadLambda.xlsx",
-    },
-    "S3": {
-        "mhm-home-security-img": METRICS_BASE_PATH / "S3" / "mhm-home-security-img.xlsx",
-        "mhm-home-security-ui": METRICS_BASE_PATH / "S3" / "mhm-home-security-ui.xlsx",
-    },
-    "DynamoDB": {
-        "Events": METRICS_BASE_PATH / "DynamoDB" / "Events.xlsx",
-        "Users": METRICS_BASE_PATH / "DynamoDB" / "Users.xlsx",
-    },
-    "API": {
-        "API": METRICS_BASE_PATH / "API Gateway" / "API.xlsx",
-    },
-    "Rekognition": {
-        "Rekognition": METRICS_BASE_PATH / "Rekognition" / "Rekognition.xlsx",
+
+def discover_metric_files():
+    """
+    Dynamically discover all Excel files in the Final Serverless Metrics folder structure.
+    Returns a dictionary with category -> {component_name -> file_path} structure.
+    """
+    metric_files = {}
+    categories = {
+        "Lambda": "Lambda",
+        "S3": "S3",
+        "DynamoDB": "DynamoDB",
+        "API": "API Gateway",
+        "Rekognition": "Rekognition"
     }
-}
+    
+    for category_key, category_folder in categories.items():
+        metric_files[category_key] = {}
+        category_path = METRICS_BASE_PATH / category_folder
+        
+        if category_path.exists():
+            # Find all .xlsx files in the category folder
+            xlsx_files = sorted(category_path.glob("*.xlsx"))
+            for xlsx_file in xlsx_files:
+                # Use filename without extension as component name
+                component_name = xlsx_file.stem
+                metric_files[category_key][component_name] = xlsx_file
+        else:
+            logging.warning(f"Category folder not found: {category_path}")
+    
+    return metric_files
+
+METRIC_FILES = discover_metric_files()
 
 # Cache for Grid Emission Factor
 _cached_grid_emission_factor = 350.0
