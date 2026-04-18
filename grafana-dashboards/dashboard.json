@@ -528,8 +528,9 @@
         "valuePosition": "top",
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         }
       },
       "targets": [
