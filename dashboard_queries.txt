@@ -1,0 +1,261 @@
+================================================================================
+DASHBOARD QUERIES - Serverless Energy & SCI Dashboard
+CORRECTED CALCULATION METHODOLOGY
+================================================================================
+
+IMPORTANT: Each component must be calculated INDIVIDUALLY first, then SUMMED.
+Do NOT sum raw values before applying formulas.
+
+================================================================================
+CONSTANTS & PARAMETERS
+================================================================================
+Lambda Compute:
+  - Pcore = 65 watts (power per CPU core)
+  - Mref = 1769 MB (reference memory for 1 vCPU)
+
+Lambda Memory:
+  - Pmem = 0.3413 watts per GB (DRAM power rating)
+
+Lambda Storage:
+  - Pstorage = 0.441 watts per GB (NVMe SSD power rating)
+
+Lambda Network:
+  - εnetwork = 0.000000475 kWh/GB (network energy intensity)
+
+S3 Active:
+  - Pactive = 4.25 watts (active power consumption per request)
+
+S3 Idle:
+  - Pidle = 0.67 watts (idle power consumption)
+  - Cmem = 16384 GB (storage capacity)
+
+DynamoDB:
+  - Pactive = 4.17 watts (active power consumption)
+
+API Gateway:
+  - PProc = 82 watts (processor power rating)
+
+Rekognition:
+  - PGPU = 175 milliwatts or 0.175 watts (GPU power consumption)
+
+Global:
+  - PUE = 1.5 (Power Usage Effectiveness)
+  - GridEmissionFactor = 350 gCO2/kWh (default, can vary by region)
+
+================================================================================
+Panel 1: Energy by Component (kWh)
+================================================================================
+
+LAMBDA ENERGY CALCULATION (Dynamic - calculates each Lambda separately, then sums)
+─────────────────────────────────────────────────────────────────────────────
+
+For each Lambda function, calculate:
+  ELambda_i = ELcompute_i + ELmemory_i + ELstorage_i + ELnetwork_i
+
+Where for each component:
+  - ELcompute = (Tcpu × Pcore × Malloc) / (1000 × 3600 × 1000 × Mref)
+  - ELmemory = (Mused × Pmem × (Texec + Tinit)) / (1024 × 1000 × 1000 × 3600)
+  - ELstorage = (Sused × Pstorage × (Texec + Tinit)) / (1024³ × 1000 × 1000 × 3600)
+  - ELnetwork = (Dnetwork × εnetwork) / 1024³
+
+Then sum: ELambda_Total = Σ ELambda_i
+
+Flux Query:
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "lambda_metrics")
+  |> map(fn: (r) => ({
+      function_name: r["function_name"],
+      Tcpu: float(v: r["execution_time_ms"]) or 0.0,
+      Malloc: float(v: r["allocated_memory_mb"]) or 0.0,
+      Mused: float(v: r["max_memory_used_mb"]) or 0.0,
+      Texec: float(v: r["execution_time_ms"]) or 0.0,
+      Tinit: float(v: r["init_duration_ms"]) or 0.0,
+      Sused: float(v: r["storage_used_bytes"]) or 0.0,
+      Dnetwork: float(v: r["data_transferred_bytes"]) or 0.0,
+      Pcore: 65.0,
+      Pmem: 0.3413,
+      Pstorage: 0.441,
+      Mref: 1769.0,
+      εnetwork: 0.000000475
+    }))
+  |> map(fn: (r) => ({
+      function_name: r["function_name"],
+      ELcompute: (r.Tcpu * r.Pcore * r.Malloc) / (1000.0 * 3600.0 * 1000.0 * r.Mref),
+      ELmemory: (r.Mused * r.Pmem * (r.Texec + r.Tinit)) / (1024.0 * 1000.0 * 1000.0 * 3600.0),
+      ELstorage: (r.Sused * r.Pstorage * (r.Texec + r.Tinit)) / (1024.0 * 1024.0 * 1024.0 * 1000.0 * 1000.0 * 3600.0),
+      ELnetwork: (r.Dnetwork * r.εnetwork) / (1024.0 * 1024.0 * 1024.0)
+    }))
+  |> map(fn: (r) => ({
+      Component: "Lambda_" + r["function_name"],
+      Energy: r.ELcompute + r.ELmemory + r.ELstorage + r.ELnetwork
+    }))
+
+Or for simplified version (if raw metrics are pre-calculated):
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "lambda_energy")
+  |> group(by: ["function_name"])
+  |> last()
+  |> map(fn: (r) => ({
+      Component: "Lambda: " + r["function_name"],
+      Energy: float(v: r["_value"]) or 0.0
+    }))
+
+
+S3 ENERGY CALCULATION (Dynamic - calculates each bucket separately, then sums)
+─────────────────────────────────────────────────────────────────────────────
+
+For each S3 bucket, calculate SEPARATELY:
+
+S3 Active Energy for bucket_i:
+  ES3active_i = (Rtotal_i × Dlatency_i × Pactive) / (1000 × 3600 × 1000)
+
+S3 Idle Energy for bucket_i:
+  ES3idle_i = ((B_i + (Ninv_i × Supload_i)) / 1024³) × (Pidle / (Cmem × 1000)) × 1
+
+Then sum:
+  EStorage_Total = Σ(ES3active_i + ES3idle_i)
+
+Flux Query:
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "s3_metrics")
+  |> group(by: ["bucket_name"])
+  |> last()
+  |> map(fn: (r) => ({
+      bucket_name: r["bucket_name"],
+      Rtotal: float(v: r["total_requests"]) or 0.0,
+      Dlatency: float(v: r["total_latency_ms"]) or 0.0,
+      B: float(v: r["bucket_size_bytes"]) or 0.0,
+      Ninv: float(v: r["num_invocations"]) or 0.0,
+      Supload: float(v: r["avg_upload_size_bytes"]) or 0.0,
+      Pactive: 4.25,
+      Pidle: 0.67,
+      Cmem: 16384.0
+    }))
+  |> map(fn: (r) => ({
+      bucket_name: r["bucket_name"],
+      ES3active: (r.Rtotal * r.Dlatency * r.Pactive) / (1000.0 * 3600.0 * 1000.0),
+      ES3idle: ((r.B + (r.Ninv * r.Supload)) / (1024.0 * 1024.0 * 1024.0)) * (r.Pidle / (r.Cmem * 1000.0)) * 1.0
+    }))
+  |> map(fn: (r) => ({
+      Component: "S3: " + r["bucket_name"],
+      Energy: r.ES3active + r.ES3idle
+    }))
+
+
+DYNAMODB ENERGY CALCULATION (Dynamic - calculates each table separately, then sums)
+──────────────────────────────────────────────────────────────────────────────────
+
+For each DynamoDB table, calculate SEPARATELY:
+  EDB_i = (Lsuccess_i × Pactive) / (1000 × 3600 × 1000)
+
+Then sum:
+  EDB_Total = Σ EDB_i
+
+Flux Query:
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "dynamodb_metrics")
+  |> group(by: ["table_name"])
+  |> last()
+  |> map(fn: (r) => ({
+      table_name: r["table_name"],
+      Lsuccess: float(v: r["latency_success_ms"]) or 0.0,
+      Pactive: 4.17
+    }))
+  |> map(fn: (r) => ({
+      Component: "DynamoDB: " + r["table_name"],
+      Energy: (r.Lsuccess * r.Pactive) / (1000.0 * 3600.0 * 1000.0)
+    }))
+
+
+API GATEWAY ENERGY CALCULATION
+──────────────────────────────
+
+EAPI_Gateway = (LAPI × PProc) / (1000 × 3600 × 1000)
+
+Flux Query:
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "api_metrics")
+  |> last()
+  |> map(fn: (r) => ({
+      LAPI: float(v: r["latency_ms"]) or 0.0,
+      PProc: 82.0
+    }))
+  |> map(fn: (r) => ({
+      Component: "API Gateway",
+      Energy: (r.LAPI * r.PProc) / (1000.0 * 3600.0 * 1000.0)
+    }))
+
+
+REKOGNITION ENERGY CALCULATION
+───────────────────────────────
+
+ERekog = (Tresponse × PGPU) / (1000 × 3600 × 1000)
+
+Where PGPU is in watts (175 milliwatts = 0.175 watts)
+
+Flux Query:
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] == "rekognition_metrics")
+  |> last()
+  |> map(fn: (r) => ({
+      Tresponse: float(v: r["response_time_ms"]) or 0.0,
+      PGPU: 0.175
+    }))
+  |> map(fn: (r) => ({
+      Component: "Rekognition",
+      Energy: (r.Tresponse * r.PGPU) / (1000.0 * 3600.0 * 1000.0)
+    }))
+
+
+================================================================================
+Panel 2: Total Energy (kWh)
+================================================================================
+
+Combines all components:
+ETotal = ELambda + EStorage + EDB + EAPI_Gateway + ERekog
+
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] =~ /lambda_energy|s3_energy|dynamodb_energy|api_energy|rekognition_energy/)
+  |> last()
+  |> group(by: ["_measurement"])
+  |> sum(column: "_value")
+  |> group()
+  |> map(fn: (r) => ({
+      Metric: "Total Energy",
+      Value: r["_value"]
+    }))
+
+
+================================================================================
+Panel 3: Software Carbon Intensity (gCO2/Kg)
+================================================================================
+
+SCI = ETotal × PUE × GridEmissionFactor
+
+Where:
+  - ETotal = total energy from Panel 2 (in kWh)
+  - PUE = 1.5 (Power Usage Effectiveness)
+  - GridEmissionFactor = 350 gCO2/kWh (or region-specific value)
+
+from(bucket: "demo_bucket")
+  |> range(start: -30d)
+  |> filter(fn: (r) => r["_measurement"] =~ /lambda_energy|s3_energy|dynamodb_energy|api_energy|rekognition_energy/)
+  |> last()
+  |> group(by: ["_measurement"])
+  |> sum(column: "_value")
+  |> group()
+  |> map(fn: (r) => ({
+      Metric: "SCI",
+      PUE: 1.5,
+      GridEmissionFactor: float(v: r["grid_emission_factor"]) or 350.0,
+      Value: r["_value"] * 1.5 * (float(v: r["grid_emission_factor"]) or 350.0)
+    }))
+
+================================================================================

@@ -1,0 +1,14 @@
+================================================================================
+ENERGY CALCULATION RESULTS - CROSS CHECK
+================================================================================
+
+Component Breakdown:
+  Lambda Total:        1.73e-06 kWh
+  S3 Total:            3.86e-07 kWh
+  DynamoDB Total:      6.12e-07 kWh
+  API Gateway Total:   2.94e-05 kWh
+  Rekognition Total:   5.12e-06 kWh
+
+TOTAL ENERGY:         3.73e-05 kWh
+SCI:                  2.32e-02 gCO2e
+================================================================================
